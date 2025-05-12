@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: my-redis-auth14
+    ports:
+      - "6379:6379"
+  postgres:
+    image: postgres:15
+    container_name: my-postgres-auth14
+    environment:
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+
+volumes:
+  postgres_data:
+
+networks:
+  mynetwork:
+    driver: bridge

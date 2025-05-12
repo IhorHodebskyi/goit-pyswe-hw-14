@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.routes.users &#8212; docs  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=279e0f84" />
+    <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">docs  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">src.routes.users</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for src.routes.users</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">UploadFile</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_limiter.depends</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLimiter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.ext.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.database.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.entity.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">User</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.schemas.user</span><span class="w"> </span><span class="kn">import</span> <span class="n">UserResponse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.services.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">auth_service</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.conf.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.repository</span><span class="w"> </span><span class="kn">import</span> <span class="n">users</span> <span class="k">as</span> <span class="n">repository_users</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">cloudinary</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cloudinary.uploader</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;/users&quot;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;users&quot;</span><span class="p">])</span>
+
+<span class="n">cloudinary</span><span class="o">.</span><span class="n">config</span><span class="p">(</span>
+    <span class="n">cloud_name</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">CLOUDINARY_NAME</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">CLOUDINARY_API_KEY</span><span class="p">,</span>
+    <span class="n">api_secret</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">CLOUDINARY_API_SECRET</span><span class="p">,</span>
+    <span class="n">secure</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_current_user">
+<a class="viewcode-back" href="../../../index.html#src.routes.users.get_current_user">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">UserResponse</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_200_OK</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">20</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_current_user</span><span class="p">(</span><span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve the current user.</span>
+
+<span class="sd">    This endpoint returns the current authenticated user.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        UserResponse: The current user.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">current_user</span></div>
+
+
+
+<div class="viewcode-block" id="upload_avatar">
+<a class="viewcode-back" href="../../../index.html#src.routes.users.upload_avatar">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/avatar&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">UserResponse</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_200_OK</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="n">Depends</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">(</span><span class="n">times</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">20</span><span class="p">))])</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload_avatar</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span> <span class="o">=</span> <span class="n">File</span><span class="p">(),</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">),</span>
+                        <span class="n">current_user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">auth_service</span><span class="o">.</span><span class="n">get_current_user</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Uploads and updates the avatar for the current user.</span>
+
+<span class="sd">    This endpoint allows the current authenticated user to upload a new avatar image.</span>
+<span class="sd">    The image is uploaded to Cloudinary, and the user&#39;s avatar URL is updated in the database.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file (UploadFile): The avatar image file to be uploaded.</span>
+<span class="sd">        db (AsyncSession): The database session.</span>
+<span class="sd">        current_user (User): The current authenticated user.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        UserResponse: The updated user with the new avatar URL.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">public_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;avatar/</span><span class="si">{</span><span class="n">current_user</span><span class="o">.</span><span class="n">email</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">upload_result</span> <span class="o">=</span> <span class="n">cloudinary</span><span class="o">.</span><span class="n">uploader</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="n">public_id</span><span class="o">=</span><span class="n">public_id</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">current_user</span><span class="o">.</span><span class="n">avatar_url</span> <span class="o">=</span> <span class="n">cloudinary</span><span class="o">.</span><span class="n">CloudinaryImage</span><span class="p">(</span><span class="n">public_id</span><span class="p">)</span><span class="o">.</span><span class="n">build_url</span><span class="p">(</span>
+        <span class="n">width</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">crop</span><span class="o">=</span><span class="s2">&quot;fill&quot;</span><span class="p">,</span> <span class="n">gravity</span><span class="o">=</span><span class="s2">&quot;face&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">corp</span><span class="o">=</span><span class="s2">&quot;fill&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">upload_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="n">new_user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">update_avatar</span><span class="p">(</span><span class="n">email</span><span class="o">=</span><span class="n">current_user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">upload_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;url&quot;</span><span class="p">),</span> <span class="n">db</span><span class="o">=</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">new_user</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">docs  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">src.routes.users</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, Igor.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>
