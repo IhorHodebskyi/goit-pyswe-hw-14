@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from sqlalchemy import select
@@ -7,7 +7,7 @@ from src.entity.models import User
 from src.services.auth import auth_service
 from tests.conftest import client, TestingSessionLocal
 from src.conf import messages
-from src.repository import auth as repository_auth
+
 
 user_mock = {"username": "Jon Snow", "email": "7ySd1@example.com", "password": "123456789", "confirmed": True,
              "role": "user"}
@@ -117,45 +117,27 @@ async def test_refresh_token_invalid_token(client):
 
 
 @pytest.mark.asyncio
-async def test_confirmed_email(client):
-    async with TestingSessionLocal() as session:
-        current_user = await session.execute(select(User).filter_by(email=user_mock.get("email")))
-        current_user = current_user.scalar_one_or_none()
-
-        if current_user:
-            current_user.confirmed = True
-            await session.commit()
-
-    response = client.post("api/auth/login",
-                           data={"username": user_mock["email"], "password": user_mock["password"]})
-    tokens = response.json()
-
-    response = client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
-    data = response.json()
-    assert response.status_code == 200
-    assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
+async def test_confirmed_email(client, get_token):
+    with patch.object(auth_service, "cache") as redis_mok:
+        redis_mok.get.return_value = None
+        tokens = get_token
+        response = client.get(f"/api/auth/confirmed_email/{tokens}")
+        data = response.json()
+        assert response.status_code == 200
+        assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
 
 
 @pytest.mark.asyncio
-async def test_confirmed_email_already_confirmed(client):
-    async with TestingSessionLocal() as session:
-        current_user = await session.execute(select(User).filter_by(email=user_mock.get("email")))
-        current_user = current_user.scalar_one_or_none()
+async def test_confirmed_email_already_confirmed(client, get_token):
+    with patch.object(auth_service, "cache") as redis_mok:
+        redis_mok.get.return_value = None
+        tokens = get_token
+        client.get(f"/api/auth/confirmed_email/{tokens}")
 
-        if current_user:
-            current_user.confirmed = True
-            await session.commit()
-
-    response = client.post("api/auth/login",
-                           data={"username": user_mock["email"], "password": user_mock["password"]})
-    tokens = response.json()
-
-    client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
-
-    response = client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
-    data = response.json()
-    assert response.status_code == 200
-    assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
+        response = client.get(f"/api/auth/confirmed_email/{tokens}")
+        data = response.json()
+        assert response.status_code == 200
+        assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
 
 
 @pytest.mark.asyncio

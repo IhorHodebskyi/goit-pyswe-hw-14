@@ -42,7 +42,6 @@ def init_models_wrap():
 
 @pytest.fixture(scope="module")
 def client():
-    # Dependency override
 
     async def override_get_db():
         session = TestingSessionLocal()
@@ -59,6 +58,7 @@ def client():
 
     yield TestClient(app)
 
-# @pytest.fixture(scope="module")
-# def user():
-#     return {"username": "deadpool", "email": "deadpool@example.com", "password": "123456789"}
+@pytest_asyncio.fixture()
+async def get_token(client):
+    token = await auth_service.create_access_token(data={"sub": test_user["email"]})
+    return token
