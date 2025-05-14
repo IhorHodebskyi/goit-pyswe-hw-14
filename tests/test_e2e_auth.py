@@ -131,8 +131,9 @@ async def test_confirmed_email(client):
     tokens = response.json()
 
     response = client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
+    data = response.json()
     assert response.status_code == 200
-    assert response.json()["message"] == "Your email is already confirmed"
+    assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
 
 
 @pytest.mark.asyncio
@@ -152,16 +153,17 @@ async def test_confirmed_email_already_confirmed(client):
     client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
 
     response = client.get(f"/api/auth/confirmed_email/{tokens['access_token']}")
+    data = response.json()
     assert response.status_code == 200
-    assert response.json()["message"] == "Your email is already confirmed"
+    assert data["message"] == messages.YOUR_EMAIL_IS_ALREADY_CONFIRMED
 
 
 @pytest.mark.asyncio
 async def test_confirmed_email_invalid_token(client):
     response = client.get("/api/auth/confirmed_email/invalid.token.string")
-    response.json()
-    print(f"response: {response}")
+    data = response.json()
     assert response.status_code == 422
+    assert "detail" in data
 
 
 
