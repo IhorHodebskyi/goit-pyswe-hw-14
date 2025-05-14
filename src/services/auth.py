@@ -12,6 +12,7 @@ import pickle
 from src.database.db import get_db
 from src.repository import auth as repository_auth
 from src.conf.config import config
+from src.conf import messages
 
 from dotenv import load_dotenv
 import logging
@@ -186,7 +187,7 @@ class Auth:
         except JWTError as e:
             logger.error(f"Error in get_email_from_token {e}")
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                                detail="Invalid token for email verification")
+                                detail=messages.INVALID_TOKEN_FOR_EMAIL_VERIFICATION)
 
 
 auth_service = Auth()

@@ -28,6 +28,8 @@ async def get_user_by_email(email: str, db: AsyncSession = Depends(get_db)):
     stmt = select(User).filter_by(email=email)
     user = await db.execute(stmt)
     user = user.scalars().first()
+    if not user:
+        return None
     return user
 
 
@@ -91,3 +93,7 @@ async def confirmed_email(email: str, db: AsyncSession = Depends(get_db)) -> Non
     user.confirmed = True
     db.add(user)
     await db.commit()
+
+
+def repository_auth():
+    return None

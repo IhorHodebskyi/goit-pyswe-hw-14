@@ -1,0 +1,11 @@
+ACCOUNT_EXISTS = "Account already exists"
+EMAIL_NOT_CONFIRMED = "Email not confirmed"
+ACCOUNT_NOT_FOUND = "Account not found"
+CREDENTIALS_EXCEPTION = "Invalid email or password"
+INVALID_TOKEN = "Invalid token"
+VERIFICATION_ERROR = "Verification error"
+INVALID_TOKEN_FOR_EMAIL_VERIFICATION = "Invalid token for email verification"
+CHECK_EMAIL = "Check your email for confirmation."
+YOUR_EMAIL_IS_ALREADY_CONFIRMED = "Your email is already confirmed"
+USER_NOT_FOUND = "User not found"
+
