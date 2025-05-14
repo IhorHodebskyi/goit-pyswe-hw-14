@@ -1,4 +1,5 @@
 from fastapi import Depends
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select, or_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +37,7 @@ async def get_contacts(limit: int, offset: int, query: str | None,
             Contact.additional_data.ilike(search)
         ))
     result = await db.execute(stmt)
-    return result.scalars().unique().all()
+    return result.scalars().all()
 
 
 async def get_contact_by_id(contact_id: int, user: User, db: AsyncSession = Depends(get_db)):
@@ -53,7 +54,7 @@ async def get_contact_by_id(contact_id: int, user: User, db: AsyncSession = Depe
     Returns:
         Contact | None: The contact that matches the given ID, or None if not found.
     """
-    stmt = select(Contact).filter_by(Contact.id == contact_id, user=user)
+    stmt = select(Contact).where(Contact.id == contact_id, Contact.user == user)
     result = await db.execute(stmt)
     return result.scalars().first()
 
@@ -79,8 +80,8 @@ async def create_contact(contact: ContactShema, user: User, db: AsyncSession = D
     contact_in_db = result.scalars().unique().first()
     if contact_in_db:
         return None
-    new_contact = Contact(**contact.model_dump(), user=user)
-    db.add(new_contact)
+    new_contact = Contact(**contact.model_dump(), user_id=user.id)
+    db .add(new_contact)
     await db.commit()
     await db.refresh(new_contact)
     return new_contact

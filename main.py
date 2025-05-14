@@ -2,6 +2,7 @@ from typing import Callable
 from fastapi.templating import Jinja2Templates
 from fastapi_limiter import FastAPILimiter
 import re
+from pathlib import Path
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Depends, Request, status
@@ -51,9 +52,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-if os.getenv("SPHINX_BUILD") != "1":
-    if os.path.isdir("src/static"):
-        app.mount("/static", StaticFiles(directory="src/static"), name="static")
+BASE_DIR = Path(__file__).parent
+directory = BASE_DIR.joinpath("src").joinpath("static")
+app.mount("/static", StaticFiles(directory=directory), name="static")
 
 app.add_middleware(
     CORSMiddleware,

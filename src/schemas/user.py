@@ -5,7 +5,7 @@ from typing import Optional
 class UserShema(BaseModel):
     username: str = Field(..., max_length=150, min_length=1)
     email: EmailStr = Field(..., max_length=150, min_length=1)
-    password: str = Field(..., min_length=6, max_length=8)
+    password: str = Field(..., min_length=6, max_length=20)
 
 class UserResponse(BaseModel):
     id: int = Field(..., gt=0)
